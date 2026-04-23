@@ -1,0 +1,13 @@
+1. Build Docker image
+Run this command:
+"""
+bash scripts/docker_build.sh
+"""
+
+2. Up Docker container
+Run this command:
+"""
+docker compose -f docker-compose-with-zalo.yml up -d
+"""
+
+3. Finish

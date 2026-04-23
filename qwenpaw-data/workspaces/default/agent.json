@@ -1,0 +1,528 @@
+{
+  "id": "default",
+  "name": "Default Agent",
+  "description": "Default QwenPaw agent (migrated from legacy config)",
+  "workspace_dir": "/app/working/workspaces/default",
+  "channels": {
+    "imessage": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "db_path": "~/Library/Messages/chat.db",
+      "poll_sec": 1.0,
+      "max_decoded_size": 10485760
+    },
+    "discord": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "bot_token": "",
+      "http_proxy": "",
+      "http_proxy_auth": "",
+      "accept_bot_messages": false
+    },
+    "dingtalk": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "client_id": "",
+      "client_secret": "",
+      "message_type": "markdown",
+      "card_template_id": "",
+      "card_template_key": "content",
+      "robot_code": "",
+      "card_auto_layout": false,
+      "at_sender_on_reply": false
+    },
+    "feishu": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "app_id": "",
+      "app_secret": "",
+      "encrypt_key": "",
+      "verification_token": "",
+      "domain": "feishu"
+    },
+    "qq": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "app_id": "",
+      "client_secret": "",
+      "markdown_enabled": true,
+      "max_reconnect_attempts": 100,
+      "ack_message": ""
+    },
+    "telegram": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "bot_token": "",
+      "http_proxy": "",
+      "http_proxy_auth": ""
+    },
+    "mattermost": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "url": "",
+      "bot_token": "",
+      "thread_follow_without_mention": false
+    },
+    "mqtt": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "host": "",
+      "transport": "",
+      "clean_session": true,
+      "qos": 2,
+      "subscribe_topic": "",
+      "publish_topic": "",
+      "tls_enabled": false
+    },
+    "console": {
+      "enabled": true,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false
+    },
+    "matrix": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "homeserver": "",
+      "user_id": "",
+      "access_token": "",
+      "group_allow_from": [],
+      "groups": {},
+      "encryption": false,
+      "vision_enabled": true,
+      "history_limit": 50,
+      "username": "",
+      "password": "",
+      "device_name": "qwenpaw-worker",
+      "sync_timeout_ms": 30000,
+      "mention_pill_in_body": false,
+      "outbound_structured_mentions": true
+    },
+    "voice": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "twilio_account_sid": "",
+      "twilio_auth_token": "",
+      "phone_number": "",
+      "phone_number_sid": "",
+      "tts_provider": "google",
+      "tts_voice": "en-US-Journey-D",
+      "stt_provider": "deepgram",
+      "language": "en-US",
+      "welcome_greeting": "Hi! This is QwenPaw. How can I help you?"
+    },
+    "wecom": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "bot_id": "",
+      "secret": "",
+      "welcome_text": "",
+      "max_reconnect_attempts": -1
+    },
+    "xiaoyi": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "ak": "",
+      "sk": "",
+      "agent_id": "",
+      "ws_url": "wss://hag.cloud.huawei.com/openclaw/v1/ws/link",
+      "task_timeout_ms": 3600000
+    },
+    "weixin": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "bot_token": "",
+      "bot_token_file": "",
+      "base_url": ""
+    },
+    "onebot": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false,
+      "dm_policy": "open",
+      "group_policy": "open",
+      "allow_from": [],
+      "deny_message": "",
+      "require_mention": false,
+      "ws_host": "0.0.0.0",
+      "ws_port": 6199,
+      "access_token": "",
+      "share_session_in_group": false
+    },
+    "zalo": {
+      "enabled": true,
+      "bot_prefix": "",
+      "filter_tool_messages": true,
+      "filter_thinking": true
+    }
+  },
+  "mcp": {
+    "clients": {
+      "tavily_search": {
+        "name": "tavily_mcp",
+        "description": "",
+        "enabled": false,
+        "transport": "stdio",
+        "url": "",
+        "headers": {},
+        "command": "npx",
+        "args": [
+          "-y",
+          "tavily-mcp@latest"
+        ],
+        "env": {
+          "TAVILY_API_KEY": ""
+        },
+        "cwd": ""
+      }
+    }
+  },
+  "last_dispatch": {
+    "channel": "zalo",
+    "user_id": "628118727088993199",
+    "session_id": "zalo:628118727088993199"
+  },
+  "running": {
+    "max_iters": 100,
+    "auto_continue_on_text_only": false,
+    "llm_retry_enabled": true,
+    "llm_max_retries": 3,
+    "llm_backoff_base": 1.0,
+    "llm_backoff_cap": 10.0,
+    "llm_max_concurrent": 10,
+    "llm_max_qpm": 600,
+    "llm_rate_limit_pause": 5.0,
+    "llm_rate_limit_jitter": 1.0,
+    "llm_acquire_timeout": 300.0,
+    "max_input_length": 131072,
+    "history_max_length": 10000,
+    "context_compact": {
+      "token_count_model": "default",
+      "token_count_use_mirror": false,
+      "token_count_estimate_divisor": 4.0,
+      "context_compact_enabled": true,
+      "memory_compact_ratio": 0.75,
+      "memory_reserve_ratio": 0.1,
+      "compact_with_thinking_block": true
+    },
+    "tool_result_compact": {
+      "enabled": true,
+      "recent_n": 2,
+      "old_max_bytes": 3000,
+      "recent_max_bytes": 50000,
+      "retention_days": 5
+    },
+    "memory_summary": {
+      "memory_summary_enabled": true,
+      "memory_prompt_enabled": true,
+      "dream_cron": "0 23 * * *",
+      "force_memory_search": false,
+      "force_max_results": 1,
+      "force_min_score": 0.3,
+      "force_memory_search_timeout": 10.0,
+      "rebuild_memory_index_on_start": false,
+      "recursive_file_watcher": false
+    },
+    "embedding_config": {
+      "backend": "openai",
+      "api_key": "",
+      "base_url": "",
+      "model_name": "",
+      "dimensions": 1024,
+      "enable_cache": true,
+      "use_dimensions": false,
+      "max_cache_size": 3000,
+      "max_input_length": 8192,
+      "max_batch_size": 10
+    },
+    "memory_manager_backend": "remelight"
+  },
+  "llm_routing": {
+    "enabled": false,
+    "mode": "local_first",
+    "local": {
+      "provider_id": "",
+      "model": ""
+    }
+  },
+  "active_model": {
+    "provider_id": "opencode",
+    "model": "big-pickle"
+  },
+  "language": "zh",
+  "system_prompt_files": [
+    "AGENTS.md",
+    "SOUL.md",
+    "PROFILE.md"
+  ],
+  "tools": {
+    "builtin_tools": {
+      "execute_shell_command": {
+        "name": "execute_shell_command",
+        "enabled": true,
+        "description": "Execute shell commands",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "💻"
+      },
+      "read_file": {
+        "name": "read_file",
+        "enabled": true,
+        "description": "Read file contents",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "📄"
+      },
+      "write_file": {
+        "name": "write_file",
+        "enabled": true,
+        "description": "Write content to file",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "✍️"
+      },
+      "edit_file": {
+        "name": "edit_file",
+        "enabled": true,
+        "description": "Edit file using find-and-replace",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "🖊️"
+      },
+      "grep_search": {
+        "name": "grep_search",
+        "enabled": true,
+        "description": "Search file contents by pattern",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "🔍"
+      },
+      "glob_search": {
+        "name": "glob_search",
+        "enabled": true,
+        "description": "Find files matching a glob pattern",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "📁"
+      },
+      "browser_use": {
+        "name": "browser_use",
+        "enabled": true,
+        "description": "Browser automation and web interaction",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "🌐"
+      },
+      "desktop_screenshot": {
+        "name": "desktop_screenshot",
+        "enabled": true,
+        "description": "Capture desktop screenshots",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "📸"
+      },
+      "view_image": {
+        "name": "view_image",
+        "enabled": true,
+        "description": "Load an image into LLM context for visual analysis",
+        "display_to_user": false,
+        "async_execution": false,
+        "icon": "🖼️"
+      },
+      "view_video": {
+        "name": "view_video",
+        "enabled": true,
+        "description": "Load a video into LLM context for visual analysis",
+        "display_to_user": false,
+        "async_execution": false,
+        "icon": "🎥"
+      },
+      "send_file_to_user": {
+        "name": "send_file_to_user",
+        "enabled": true,
+        "description": "Send files to user",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "📤"
+      },
+      "get_current_time": {
+        "name": "get_current_time",
+        "enabled": true,
+        "description": "Get current date and time",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "🕐"
+      },
+      "set_user_timezone": {
+        "name": "set_user_timezone",
+        "enabled": true,
+        "description": "Set user timezone",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "🌍"
+      },
+      "get_token_usage": {
+        "name": "get_token_usage",
+        "enabled": true,
+        "description": "Get llm token usage",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "📊"
+      },
+      "delegate_external_agent": {
+        "name": "delegate_external_agent",
+        "enabled": false,
+        "description": "Delegate work to an external ACP agent runner",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "📡"
+      },
+      "list_agents": {
+        "name": "list_agents",
+        "enabled": true,
+        "description": "List configured agents from the local API",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "🤖"
+      },
+      "chat_with_agent": {
+        "name": "chat_with_agent",
+        "enabled": true,
+        "description": "Send a message to another configured agent and wait for the response",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "💬"
+      },
+      "submit_to_agent": {
+        "name": "submit_to_agent",
+        "enabled": true,
+        "description": "Submit a background task to another configured agent",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "📨"
+      },
+      "check_agent_task": {
+        "name": "check_agent_task",
+        "enabled": true,
+        "description": "Check the status of a background agent task",
+        "display_to_user": true,
+        "async_execution": false,
+        "icon": "⏳"
+      }
+    }
+  },
+  "security": {
+    "tool_guard": {
+      "enabled": true,
+      "denied_tools": [],
+      "custom_rules": [],
+      "disabled_rules": []
+    },
+    "file_guard": {
+      "enabled": true,
+      "sensitive_files": []
+    },
+    "skill_scanner": {
+      "mode": "warn",
+      "timeout": 30,
+      "whitelist": []
+    }
+  }
+}

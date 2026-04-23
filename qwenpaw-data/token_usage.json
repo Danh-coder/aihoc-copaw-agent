@@ -1,0 +1,29 @@
+{
+  "2026-04-21": {
+    "opencode:big-pickle": {
+      "provider_id": "opencode",
+      "model_name": "big-pickle",
+      "prompt_tokens": 377436,
+      "completion_tokens": 6435,
+      "call_count": 41
+    }
+  },
+  "2026-04-22": {
+    "opencode:big-pickle": {
+      "provider_id": "opencode",
+      "model_name": "big-pickle",
+      "prompt_tokens": 38383,
+      "completion_tokens": 2407,
+      "call_count": 3
+    }
+  },
+  "2026-04-23": {
+    "opencode:big-pickle": {
+      "provider_id": "opencode",
+      "model_name": "big-pickle",
+      "prompt_tokens": 31015,
+      "completion_tokens": 1383,
+      "call_count": 2
+    }
+  }
+}

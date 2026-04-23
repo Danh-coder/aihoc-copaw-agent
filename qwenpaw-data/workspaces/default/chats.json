@@ -1,0 +1,41 @@
+{
+  "chats": [
+    {
+      "channel": "console",
+      "created_at": "2026-04-21T12:36:37.910359Z",
+      "id": "51efbb62-397e-4882-bd3e-5469a93d10ad",
+      "meta": {},
+      "name": "Again",
+      "pinned": false,
+      "session_id": "1776774959832",
+      "status": "idle",
+      "updated_at": "2026-04-21T12:36:50.805810Z",
+      "user_id": "default"
+    },
+    {
+      "channel": "zalo",
+      "created_at": "2026-04-21T13:16:41.505253Z",
+      "id": "94012a78-c8c2-4086-8a3f-26bbea1507bf",
+      "meta": {},
+      "name": "Alo",
+      "pinned": false,
+      "session_id": "zalo:2397384507353835613",
+      "status": "idle",
+      "updated_at": "2026-04-21T13:35:46.379898Z",
+      "user_id": "2397384507353835613"
+    },
+    {
+      "channel": "zalo",
+      "created_at": "2026-04-21T13:23:53.601906Z",
+      "id": "905b135a-8153-416d-abbe-70119835e71c",
+      "meta": {},
+      "name": "The user is continuing to greet me casually. I'll ",
+      "pinned": false,
+      "session_id": "zalo:628118727088993199",
+      "status": "idle",
+      "updated_at": "2026-04-23T06:02:03.510758Z",
+      "user_id": "628118727088993199"
+    }
+  ],
+  "version": 1
+}

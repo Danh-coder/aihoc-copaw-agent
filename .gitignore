@@ -111,3 +111,6 @@ src/.hypothesis/
 
 # Worktrees
 .worktrees/
+
+# Runtime browser profile/lock files in workspace data
+qwenpaw-data/workspaces/**/browser/user_data/
