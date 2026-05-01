@@ -52,6 +52,7 @@
     "tokenUsage": "トークン使用量",
     "tools": "ツール",
     "voiceTranscription": "音声文字起こし",
+    "ragSources": "RAGソース",
     "agents": "エージェント管理",
     "debug": "デバッグ",
     "plugins": "プラグイン"

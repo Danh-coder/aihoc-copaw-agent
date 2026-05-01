@@ -1,6 +1,9 @@
 services:
   qwenpaw:
-    image: agentscope/qwenpaw:latest
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    image: qwenpaw-local:latest
     container_name: qwenpaw
     restart: always
     ports:
@@ -11,9 +14,16 @@ services:
     environment:
       - ZALO_IMEI=${ZALO_IMEI}
       - ZALO_COOKIES=${ZALO_COOKIES}
+      - DATABASE_URL=${DATABASE_URL}
+      - QRANDT_API_URL=${QRANDT_API_URL}
+      - QRANDT_API_KEY=${QRANDT_API_KEY}
+      - EMBEDDING_API_KEY=${EMBEDDING_API_KEY}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-models/gemini-embedding-001}
       # (Alternatively, use --env-file to load from .env)
     depends_on:
       - zalo-bot  # ensure volume service is ready
+      - postgres
+      - qrandt
   zalo-bot:
     image: python:3.11-slim
     container_name: zalo-bot
@@ -27,3 +37,30 @@ services:
                # (Optional) run a persistent task (e.g. update cookies periodically)
                sleep infinity"
     # No ports needed: CoPaw has ZLAPI available via shared volume or Python import.
+
+  postgres:
+    image: postgres:15
+    container_name: qwenpaw-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-qwenpaw}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  qrandt:
+    build: ./scripts/qrandt_mock
+    container_name: qrandt-mock
+    restart: always
+    volumes:
+      - ./qwenpaw-data/qrandt:/data
+    ports:
+      - "8000:8000"
+    environment:
+      - QRANDT_API_KEY=${QRANDT_API_KEY}
+
+volumes:
+  pgdata:

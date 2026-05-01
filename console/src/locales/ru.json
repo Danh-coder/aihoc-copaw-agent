@@ -52,6 +52,7 @@
     "security": "Безопасность",
     "tokenUsage": "Использование токенов",
     "voiceTranscription": "Транскрипция голоса",
+    "ragSources": "RAG Источники",
     "agents": "Управление агентами",
     "debug": "Отладка",
     "plugins": "Плагины"

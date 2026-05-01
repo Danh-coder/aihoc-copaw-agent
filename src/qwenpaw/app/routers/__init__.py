@@ -20,6 +20,7 @@ from .token_usage import router as token_usage_router
 from .auth import router as auth_router
 from .messages import router as messages_router
 from .files import router as files_router
+from .sources import router as sources_router
 from .settings import router as settings_router
 from .plugins import router as plugins_router
 
@@ -43,6 +44,7 @@ router.include_router(envs_router)
 router.include_router(token_usage_router)
 router.include_router(auth_router)
 router.include_router(files_router)
+router.include_router(sources_router)
 router.include_router(settings_router)
 router.include_router(plugins_router)
 

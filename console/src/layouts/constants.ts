@@ -36,6 +36,7 @@ export const KEY_TO_PATH: Record<string, string> = {
   "token-usage": "/token-usage",
   "voice-transcription": "/voice-transcription",
   debug: "/debug",
+  "rag-sources": "/rag-sources",
 };
 
 export const KEY_TO_LABEL: Record<string, string> = {
@@ -56,6 +57,7 @@ export const KEY_TO_LABEL: Record<string, string> = {
   "token-usage": "nav.tokenUsage",
   agents: "nav.agents",
   debug: "nav.debug",
+  "rag-sources": "nav.ragSources",
 };
 
 // ── URL helpers ───────────────────────────────────────────────────────────

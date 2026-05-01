@@ -361,6 +361,11 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
           icon: <SparkMicLine size={16} />,
         },
         {
+          key: "rag-sources",
+          label: collapsed ? null : t("nav.ragSources", "RAG Sources"),
+          icon: <SparkLocalFileLine size={16} />,
+        },
+        {
           key: "debug",
           label: collapsed ? null : t("nav.debug", "Debug"),
           icon: <SparkOtherLine size={16} />,

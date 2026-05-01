@@ -49,6 +49,7 @@ const TokenUsagePage = lazyWithRetry(
 const VoiceTranscriptionPage = lazyWithRetry(
   () => import("../../pages/Settings/VoiceTranscription"),
 );
+const RagSourcesPage = lazyWithRetry(() => import("../../pages/Settings/RagSources"));
 const AgentsPage = lazyWithRetry(() => import("../../pages/Settings/Agents"));
 const DebugPage = lazyWithRetry(() => import("../../pages/Settings/Debug"));
 
@@ -132,6 +133,7 @@ export default function MainLayout() {
                     element={<VoiceTranscriptionPage />}
                   />
                   <Route path="/debug" element={<DebugPage />} />
+                  <Route path="/rag-sources" element={<RagSourcesPage />} />
 
                   {/* Plugin routes — dynamically injected at runtime */}
                   {pluginRoutes.map((route) => (

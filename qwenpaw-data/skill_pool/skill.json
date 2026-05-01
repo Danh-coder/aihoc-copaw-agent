@@ -1,6 +1,6 @@
 {
   "schema_version": "skill-pool-manifest.v1",
-  "version": 1776751585306,
+  "version": 1777610039098,
   "skills": {
     "QA_source_index": {
       "name": "QA_source_index",
@@ -52,7 +52,7 @@
         "require_bins": [],
         "require_envs": []
       },
-      "updated_at": "2026-04-21T00:05:11Z"
+      "updated_at": "2026-04-23T06:59:37.021300Z"
     },
     "chat_with_agent": {
       "name": "chat_with_agent",
@@ -65,7 +65,7 @@
         "require_bins": [],
         "require_envs": []
       },
-      "updated_at": "2026-04-21T00:05:11Z"
+      "updated_at": "2026-04-23T06:59:37.021300Z"
     },
     "cron": {
       "name": "cron",
@@ -78,7 +78,7 @@
         "require_bins": [],
         "require_envs": []
       },
-      "updated_at": "2026-04-21T00:05:11Z"
+      "updated_at": "2026-04-23T06:59:37.030809Z"
     },
     "dingtalk_channel": {
       "name": "dingtalk_channel",
@@ -171,7 +171,7 @@
         "require_bins": [],
         "require_envs": []
       },
-      "updated_at": "2026-04-21T00:05:11Z"
+      "updated_at": "2026-04-23T06:59:37.065104Z"
     },
     "news": {
       "name": "news",
@@ -197,7 +197,7 @@
         "require_bins": [],
         "require_envs": []
       },
-      "updated_at": "2026-04-21T00:05:11Z"
+      "updated_at": "2026-04-23T06:59:37.065104Z"
     },
     "pptx": {
       "name": "pptx",
@@ -223,7 +223,7 @@
         "require_bins": [],
         "require_envs": []
       },
-      "updated_at": "2026-04-21T00:05:11Z"
+      "updated_at": "2026-04-23T06:59:37.098671Z"
     }
   },
   "builtin_skill_names": [
