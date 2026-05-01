@@ -1,13 +1,13 @@
-1. Build Docker image
-Run this command:
+1. Copy .env.example to .env
 """
-bash scripts/docker_build.sh
-"""
-
-2. Up Docker container
-Run this command:
-"""
-docker compose -f docker-compose-with-zalo.yml up -d
+cp .env.example .env
 """
 
-3. Finish
+2. Fill in credentials in .env file
+
+3. Run the deploy script
+"""
+bash scripts/deploy.sh
+"""
+
+4. Finish
