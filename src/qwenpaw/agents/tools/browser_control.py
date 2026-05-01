@@ -14,6 +14,7 @@ import atexit
 from concurrent import futures
 import json
 import logging
+import os
 from pathlib import Path
 import signal
 import socket
@@ -329,12 +330,28 @@ def _sync_browser_launch(state: dict, cdp_port: int = 0):
         user_data_dir = state["user_data_dir"]
         if user_data_dir:
             Path(user_data_dir).mkdir(parents=True, exist_ok=True)
-            context = pw.chromium.launch_persistent_context(
-                user_data_dir=user_data_dir,
-                headless=state["headless"],
-                executable_path=exe,
-                args=extra_args if extra_args else [],
-            )
+            try:
+                context = pw.chromium.launch_persistent_context(
+                    user_data_dir=user_data_dir,
+                    headless=state["headless"],
+                    executable_path=exe,
+                    args=extra_args if extra_args else [],
+                )
+            except Exception as first_exc:
+                cleaned = False
+                if _is_singleton_lock_error(first_exc):
+                    cleaned = _cleanup_stale_singleton_locks(user_data_dir)
+                if not cleaned:
+                    raise
+                logger.info(
+                    "Detected stale Chromium singleton lock; retrying sync persistent context launch once",
+                )
+                context = pw.chromium.launch_persistent_context(
+                    user_data_dir=user_data_dir,
+                    headless=state["headless"],
+                    executable_path=exe,
+                    args=extra_args if extra_args else [],
+                )
             _attach_context_listeners(state, context)
             return pw, None, context
         launch_kwargs = {"headless": state["headless"]}
@@ -436,14 +453,38 @@ async def _start_managed_cdp_browser(
         )
 
     chosen_cdp_port = cdp_port or _find_free_local_port()
-    proc = _start_managed_chromium_process(
-        executable_path=exe,
-        user_data_dir=state["user_data_dir"],
-        headless=state["headless"],
-        cdp_port=chosen_cdp_port,
-    )
+    user_data_dir = state["user_data_dir"]
+
+    def _launch_proc() -> subprocess.Popen:
+        return _start_managed_chromium_process(
+            executable_path=exe,
+            user_data_dir=user_data_dir,
+            headless=state["headless"],
+            cdp_port=chosen_cdp_port,
+        )
+
+    proc = _launch_proc()
     try:
-        await _wait_for_cdp_ready(chosen_cdp_port)
+        try:
+            await _wait_for_cdp_ready(chosen_cdp_port)
+        except Exception as first_exc:
+            cleaned = False
+            if proc.poll() is None:
+                try:
+                    proc.kill()
+                    await asyncio.to_thread(proc.wait, 5)
+                except Exception:
+                    pass
+            if _is_singleton_lock_error(first_exc):
+                cleaned = _cleanup_stale_singleton_locks(user_data_dir)
+            if cleaned:
+                logger.info(
+                    "Detected stale Chromium singleton lock; retrying managed CDP launch once",
+                )
+                proc = _launch_proc()
+                await _wait_for_cdp_ready(chosen_cdp_port)
+            else:
+                raise
         async_playwright = _ensure_playwright_async()
         pw = await async_playwright().start()
         browser = await pw.chromium.connect_over_cdp(
@@ -519,6 +560,73 @@ def _start_managed_chromium_process(
         popen_kwargs["start_new_session"] = True
 
     return subprocess.Popen(args, **popen_kwargs)
+
+
+_SINGLETON_LOCK_FILES = (
+    "SingletonLock",
+    "SingletonCookie",
+    "SingletonSocket",
+)
+
+
+def _is_singleton_lock_error(exc: Exception) -> bool:
+    """Best-effort detection for Chromium profile singleton lock failures."""
+    msg = str(exc).lower()
+    return (
+        "process_singleton" in msg
+        or "singletonlock" in msg
+        or "profile appears to be in use" in msg
+    )
+
+
+def _parse_lock_owner_pid(user_data_dir: str) -> Optional[int]:
+    """Read owner PID from Chromium SingletonLock if present and parseable."""
+    lock_path = Path(user_data_dir) / "SingletonLock"
+    if not lock_path.is_file():
+        return None
+    try:
+        raw = lock_path.read_text(encoding="utf-8", errors="ignore").strip()
+    except OSError:
+        return None
+    if not raw:
+        return None
+    token = raw.splitlines()[0].strip().split(" ", 1)[0]
+    return int(token) if token.isdigit() else None
+
+
+def _pid_looks_alive(pid: int) -> bool:
+    """Return True if PID currently looks alive on this host."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _cleanup_stale_singleton_locks(user_data_dir: str) -> bool:
+    """Remove stale Chromium singleton lock artifacts when safe to do so."""
+    if not user_data_dir:
+        return False
+
+    owner_pid = _parse_lock_owner_pid(user_data_dir)
+    if owner_pid is not None and _pid_looks_alive(owner_pid):
+        logger.warning(
+            "Skip stale lock cleanup for %s: owner pid %s appears alive",
+            user_data_dir,
+            owner_pid,
+        )
+        return False
+
+    removed = False
+    for name in _SINGLETON_LOCK_FILES:
+        p = Path(user_data_dir) / name
+        try:
+            if p.exists() or p.is_symlink():
+                p.unlink()
+                removed = True
+        except OSError:
+            logger.warning("Failed to remove %s", p, exc_info=True)
+    return removed
 
 
 async def _stop_owned_browser_process(state: dict) -> bool:
@@ -773,6 +881,39 @@ def _cancel_idle_watchdog(state: dict) -> None:
     state["_idle_task"] = None
 
 
+async def _launch_persistent_context_with_lock_recovery(
+    pw,
+    user_data_dir: str,
+    *,
+    headless: bool,
+    executable_path: Optional[str],
+    args: list[str],
+):
+    """Launch persistent context and retry once after stale lock cleanup."""
+    try:
+        return await pw.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=headless,
+            executable_path=executable_path,
+            args=args,
+        )
+    except Exception as first_exc:
+        cleaned = False
+        if _is_singleton_lock_error(first_exc):
+            cleaned = _cleanup_stale_singleton_locks(user_data_dir)
+        if not cleaned:
+            raise
+        logger.info(
+            "Detected stale Chromium singleton lock; retrying persistent context launch once",
+        )
+        return await pw.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=headless,
+            executable_path=executable_path,
+            args=args,
+        )
+
+
 # pylint: disable=R0912,R0915
 async def _action_start(
     state: dict,
@@ -882,7 +1023,8 @@ async def _action_start(
                 user_data_dir = state["user_data_dir"]
                 if user_data_dir:
                     Path(user_data_dir).mkdir(parents=True, exist_ok=True)
-                    context = await pw.chromium.launch_persistent_context(
+                    context = await _launch_persistent_context_with_lock_recovery(
+                        pw,
                         user_data_dir=user_data_dir,
                         headless=state["headless"],
                         executable_path=exe if exe else None,
@@ -960,9 +1102,19 @@ async def _action_start(
             json.dumps(result, ensure_ascii=False, indent=2),
         )
     except Exception as e:
+        extra_hint = ""
+        if _is_singleton_lock_error(e):
+            extra_hint = (
+                " If profile lock persists, stop other Chromium processes using this "
+                "workspace profile, or remove SingletonLock/SingletonCookie/"
+                "SingletonSocket under browser/user_data and retry."
+            )
         return _tool_response(
             json.dumps(
-                {"ok": False, "error": f"Browser start failed: {e!s}"},
+                {
+                    "ok": False,
+                    "error": f"Browser start failed: {e!s}{extra_hint}",
+                },
                 ensure_ascii=False,
                 indent=2,
             ),
