@@ -440,8 +440,18 @@ def agentscope_msg_to_message(
                 else:
                     output = block.get("output")
 
+                # Some providers emit tool results without `id`.
+                # Keep call_id non-null to satisfy schema validation.
+                output_call_id = (
+                    block.get("id")
+                    or block.get("tool_use_id")
+                    or block.get("call_id")
+                    or block.get("name")
+                    or "unknown_tool_call"
+                )
+
                 output_data = FunctionCallOutput(
-                    call_id=block.get("id"),
+                    call_id=str(output_call_id),
                     name=block.get("name"),
                     output=output,
                 ).model_dump(exclude_none=True)
