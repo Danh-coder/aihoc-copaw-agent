@@ -252,6 +252,94 @@ class MultiAgentManager:
             logger.info(f"Agent stopped and removed: {agent_id}")
             return True
 
+    @staticmethod
+    def _requires_sequential_reload(instance: Workspace) -> bool:
+        """True when any running channel cannot coexist on reload.
+
+        Channels that bind fixed socket ports (e.g. custom websocket server)
+        should set ``requires_sequential_reload = True``.
+        """
+        try:
+            channel_manager = instance.channel_manager
+            if channel_manager is None:
+                return False
+            for ch in getattr(channel_manager, "channels", []) or []:
+                if getattr(ch, "requires_sequential_reload", False):
+                    return True
+        except Exception:
+            logger.exception("failed to inspect channels for reload strategy")
+        return False
+
+    async def _reload_agent_sequential(
+        self,
+        agent_id: str,
+        old_instance: Workspace,
+        agent_ref,
+    ) -> bool:
+        """Reload by stopping old instance first, then starting new one."""
+        logger.warning(
+            "Reloading agent with sequential strategy (stop-then-start): %s",
+            agent_id,
+        )
+
+        # Capture reusable services before stop.
+        # pylint: disable=protected-access
+        reusable = old_instance._service_manager.get_reusable_services()
+        # pylint: enable=protected-access
+
+        async with self._lock:
+            current = self.agents.get(agent_id)
+            if current is not old_instance:
+                logger.warning(
+                    "Agent %s changed during sequential reload; abort",
+                    agent_id,
+                )
+                return False
+            del self.agents[agent_id]
+
+        try:
+            await old_instance.stop(final=False)
+            logger.info("Old workspace instance stopped (sequential): %s", agent_id)
+        except Exception as e:
+            logger.error(
+                "Failed stopping old workspace before sequential reload %s: %s",
+                agent_id,
+                e,
+            )
+            return False
+
+        new_instance = Workspace(
+            agent_id=agent_id,
+            workspace_dir=agent_ref.workspace_dir,
+        )
+        if reusable:
+            await new_instance.set_reusable_components(reusable)
+            logger.info(
+                "Set reusable components for %s (sequential): %s",
+                agent_id,
+                list(reusable.keys()),
+            )
+
+        try:
+            await new_instance.start()
+            new_instance.set_manager(self)
+        except Exception as e:
+            logger.exception(
+                "Failed to start new workspace instance for %s (sequential): %s",
+                agent_id,
+                e,
+            )
+            try:
+                await new_instance.stop()
+            except Exception:
+                pass
+            return False
+
+        async with self._lock:
+            self.agents[agent_id] = new_instance
+        logger.info("Sequential reload completed: %s", agent_id)
+        return True
+
     async def reload_agent(self, agent_id: str) -> bool:
         """Reload a specific agent instance with zero-downtime.
 
@@ -287,6 +375,21 @@ class MultiAgentManager:
                 )
                 return False
             old_instance = self.agents[agent_id]
+
+        if self._requires_sequential_reload(old_instance):
+            config = load_config()
+            if agent_id not in config.agents.profiles:
+                logger.error(
+                    f"Agent '{agent_id}' not found in configuration "
+                    f"during reload",
+                )
+                return False
+            agent_ref = config.agents.profiles[agent_id]
+            return await self._reload_agent_sequential(
+                agent_id,
+                old_instance,
+                agent_ref,
+            )
 
         logger.info(f"Reloading agent (zero-downtime): {agent_id}")
 

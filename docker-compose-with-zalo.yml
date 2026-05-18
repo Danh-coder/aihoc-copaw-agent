@@ -3,11 +3,12 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile
-    image: qwenpaw-local:latest
+    image: agentscope/qwenpaw:latest
     container_name: qwenpaw
     restart: always
     ports:
       - "8088:8088"         # CoPaw console/API
+      - "9101:9101"         # custom websocket channel
     volumes:
       - ./qwenpaw-data:/app/working       # persistent CoPaw config/memory
       - ./qwenpaw-secrets:/app/working.secret  # for credentials, logs

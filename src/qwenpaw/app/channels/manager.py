@@ -473,8 +473,10 @@ class ChannelManager:
         for g in snapshot:
             try:
                 await g.start()
-            except Exception:
-                logger.exception(f"failed to start channels={g.channel}")
+            except Exception as e:
+                logger.exception(
+                    f"failed to start channels={g.channel}: {e}",
+                )
 
     async def stop_all(self) -> None:
         """Stop all channels and queue manager."""
