@@ -56,6 +56,19 @@ def _sanitize_tool_call(tool_call: Any) -> Any | None:
         except (TypeError, ValueError):
             safe_arguments = str(raw_arguments)
 
+    raw_id = getattr(tool_call, "id", None)
+    if isinstance(raw_id, str):
+        safe_id = raw_id.strip()
+    elif raw_id is None:
+        safe_id = ""
+    else:
+        safe_id = str(raw_id)
+
+    if not safe_id:
+        # Some providers omit tool_call.id; synthesize a stable id per index
+        # so tool_use/tool_result blocks remain pairable.
+        safe_id = f"toolcall_{getattr(tool_call, 'index', 0)}"
+
     if (
         has_name
         and has_arguments
@@ -64,6 +77,8 @@ def _sanitize_tool_call(tool_call: Any) -> Any | None:
             raw_arguments,
             str,
         )
+        and isinstance(raw_id, str)
+        and raw_id.strip()
     ):
         return tool_call
 
@@ -71,7 +86,11 @@ def _sanitize_tool_call(tool_call: Any) -> Any | None:
         name=safe_name,
         arguments=safe_arguments,
     )
-    return _clone_with_overrides(tool_call, function=safe_function)
+    return _clone_with_overrides(
+        tool_call,
+        id=safe_id,
+        function=safe_function,
+    )
 
 
 def _sanitize_chunk(chunk: Any) -> Any:

@@ -247,10 +247,16 @@
       "share_session_in_group": false
     },
     "zalo": {
-      "enabled": true,
+      "enabled": false,
       "bot_prefix": "",
       "filter_tool_messages": true,
       "filter_thinking": true
+    },
+    "wsocket": {
+      "enabled": false,
+      "bot_prefix": "",
+      "filter_tool_messages": false,
+      "filter_thinking": false
     }
   },
   "mcp": {
@@ -275,9 +281,9 @@
     }
   },
   "last_dispatch": {
-    "channel": "zalo",
-    "user_id": "628118727088993199",
-    "session_id": "zalo:628118727088993199"
+    "channel": "console",
+    "user_id": "e2e_user",
+    "session_id": "e2e_fallback3_20260521_193209"
   },
   "running": {
     "max_iters": 100,
@@ -343,8 +349,8 @@
     }
   },
   "active_model": {
-    "provider_id": "opencode",
-    "model": "big-pickle"
+    "provider_id": "gemini",
+    "model": "gemini-2.5-flash-lite"
   },
   "language": "zh",
   "system_prompt_files": [

@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+from pathlib import Path
+import time
 import uuid
 from typing import Any
 
@@ -12,6 +14,7 @@ import aiohttp
 from aiohttp import web
 
 from agentscope_runtime.engine.schemas.agent_schemas import (
+    MessageType,
     TextContent,
     ContentType,
 )
@@ -366,3 +369,153 @@ class CustomChannel(BaseChannel):
                     "wsocket send failed: to_handle=%s",
                     to_handle,
                 )
+
+    @staticmethod
+    def _extract_report_paths_from_tool_output(event: Any) -> str | None:
+        """Extract pdf_path from execute_shell_command output."""
+        raw_output = None
+        direct_data = getattr(event, "data", None)
+        if isinstance(direct_data, dict):
+            if direct_data.get("name") == "execute_shell_command":
+                raw_output = direct_data.get("output")
+
+        if raw_output is not None:
+            parsed = None
+            if isinstance(raw_output, dict):
+                parsed = raw_output
+            elif isinstance(raw_output, str):
+                try:
+                    parsed = json.loads(raw_output)
+                except json.JSONDecodeError:
+                    parsed = None
+
+            if isinstance(parsed, dict) and parsed.get("status") == "ok":
+                pdf_path = parsed.get("pdf_path")
+                return str(pdf_path) if pdf_path else None
+
+        content = getattr(event, "content", None) or []
+        for block in content:
+            if getattr(block, "type", None) != ContentType.DATA:
+                continue
+            data = getattr(block, "data", None) or {}
+            if data.get("name") != "execute_shell_command":
+                continue
+
+            output_text = data.get("output")
+            if not isinstance(output_text, str):
+                continue
+
+            try:
+                parsed = json.loads(output_text)
+            except json.JSONDecodeError:
+                continue
+
+            if not isinstance(parsed, dict):
+                continue
+            if parsed.get("status") != "ok":
+                continue
+
+            pdf_path = parsed.get("pdf_path")
+            return str(pdf_path) if pdf_path else None
+
+        return None
+
+    def _message_has_visible_text(self, event: Any) -> bool:
+        """Return True when rendered message contains visible text/refusal."""
+        parts = self._message_to_content_parts(event)
+        for part in parts:
+            part_type = getattr(part, "type", None)
+            if part_type == ContentType.TEXT:
+                if str(getattr(part, "text", "") or "").strip():
+                    return True
+            elif part_type == ContentType.REFUSAL:
+                if str(getattr(part, "refusal", "") or "").strip():
+                    return True
+        return False
+
+    @staticmethod
+    def _find_recent_report_paths(max_age_seconds: int = 180) -> str | None:
+        """Best-effort recovery of newly generated report PDF by mtime."""
+        base_data_dir = Path(__file__).resolve().parent.parent
+        candidates = [
+            base_data_dir / "workspaces" / "agent-tao-bao-cao" / "reports",
+            Path("qwenpaw-data") / "workspaces" / "agent-tao-bao-cao" / "reports",
+        ]
+        reports_dir = next((p for p in candidates if p.exists() and p.is_dir()), None)
+        if reports_dir is None:
+            return None
+
+        now = time.time()
+        recent_files = []
+        for file_path in reports_dir.glob("*.pdf"):
+            try:
+                mtime = file_path.stat().st_mtime
+            except OSError:
+                continue
+            if now - mtime <= max_age_seconds:
+                recent_files.append((mtime, file_path))
+
+        if not recent_files:
+            return None
+
+        recent_files.sort(key=lambda x: x[0], reverse=True)
+        return str(recent_files[0][1])
+
+    async def on_event_message_completed(
+        self,
+        request,
+        to_handle: str,
+        event: Any,
+        send_meta: dict[str, Any],
+    ) -> None:
+        """Send normal message first, then fallback reply for report success."""
+        await super().on_event_message_completed(
+            request,
+            to_handle,
+            event,
+            send_meta,
+        )
+
+        msg_type = getattr(event, "type", None)
+
+        if (
+            msg_type == MessageType.MESSAGE
+            and not send_meta.get("_empty_final_notified")
+            and not send_meta.get("_report_success_notified")
+            and not self._message_has_visible_text(event)
+        ):
+            send_meta["_empty_final_notified"] = True
+            recovered_pdf = self._find_recent_report_paths()
+            if recovered_pdf:
+                lines = ["Bao cao da duoc tao thanh cong."]
+                lines.append(f"PDF: {recovered_pdf}")
+                send_meta["_report_success_notified"] = True
+                await self.send(to_handle, "\n".join(lines), send_meta)
+            else:
+                await self.send(
+                    to_handle,
+                    "Yeu cau da duoc tiep nhan va xu ly, nhung he thong khong tra ve noi dung van ban. Vui long thu lai hoac gui lai thong tin ngan gon hon.",
+                    send_meta,
+                )
+
+        if send_meta.get("_report_success_notified"):
+            return
+
+        if msg_type != MessageType.PLUGIN_CALL_OUTPUT:
+            return
+
+        pdf_path = self._extract_report_paths_from_tool_output(
+            event,
+        )
+        if not pdf_path:
+            return
+
+        lines = ["Bao cao da duoc tao thanh cong."]
+        lines.append(f"PDF: {pdf_path}")
+
+        send_meta["_report_success_notified"] = True
+        await self.send(
+            to_handle,
+            "\n".join(lines),
+            send_meta,
+        )

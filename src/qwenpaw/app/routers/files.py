@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import os
+import re
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from starlette.responses import FileResponse
@@ -15,9 +17,19 @@ async def preview_file(
     filepath: str,
 ):
     """Preview file."""
-    path = Path(filepath)
+    raw = (filepath or "").strip()
+    path = Path(raw)
+
+    # Accept both "C:/..." and "/C:/..." forms on Windows.
+    if os.name == "nt":
+        if re.match(r"^[a-zA-Z]:[\\/]", raw):
+            path = Path(raw)
+        elif raw.startswith("/") and re.match(r"^[a-zA-Z]:[\\/]", raw[1:]):
+            path = Path(raw[1:])
+
     if not path.is_absolute():
-        path = Path("/" + filepath)
+        path = Path("/" + raw)
+
     path = path.resolve()
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Not found")

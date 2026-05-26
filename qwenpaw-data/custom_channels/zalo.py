@@ -6,8 +6,10 @@ import asyncio
 import json
 import inspect
 import os
+from pathlib import Path
 from typing import Any, Callable
 import logging
+from urllib.parse import quote
 
 from zlapi.Async import ZaloAPI
 from zlapi.models import Message, ThreadType
@@ -97,6 +99,7 @@ class CustomChannel(BaseChannel):
         )
         self._phone = phone or os.getenv("ZALO_PHONE", "")
         self._password = password or os.getenv("ZALO_PASSWORD", "")
+        self._file_base_url = os.getenv("ZALO_FILE_BASE_URL", "").rstrip("/")
 
         logger.info(
             "zalo init: enabled=%s imei_set=%s cookies_type=%s",
@@ -509,3 +512,98 @@ class CustomChannel(BaseChannel):
         except Exception:
             logger.exception("zalo send failed: to=%s", str(to_handle)[:64])
             raise
+
+    @staticmethod
+    def _resolve_thread_type(meta: dict[str, Any]) -> Any:
+        thread_type = ThreadType.USER
+        thread_type_name = str(meta.get("thread_type") or "").upper()
+        if thread_type_name == "GROUP" and hasattr(ThreadType, "GROUP"):
+            thread_type = ThreadType.GROUP
+        return thread_type
+
+    def _to_zalo_remote_file_url(self, file_ref: str) -> str | None:
+        if not file_ref:
+            return None
+        ref = str(file_ref).strip()
+        if not ref:
+            return None
+        if ref.startswith("http://") or ref.startswith("https://"):
+            return ref
+        if ref.startswith("file://"):
+            if not self._file_base_url:
+                return None
+            local_path = ref[len("file://") :]
+            normalized = local_path.replace("\\", "/").lstrip("/")
+            return f"{self._file_base_url}/files/preview/{quote(normalized, safe='/')}"
+        return None
+
+    async def send_content_parts(self, to_handle: str, parts, meta=None):
+        meta = meta or {}
+        text_parts = []
+        file_parts = []
+
+        for part in parts or []:
+            part_type = getattr(part, "type", None)
+            if part_type == ContentType.TEXT and getattr(part, "text", None):
+                text_parts.append(str(part.text))
+            elif (
+                part_type == ContentType.REFUSAL
+                and getattr(part, "refusal", None)
+            ):
+                text_parts.append(str(part.refusal))
+            elif part_type == ContentType.FILE:
+                file_parts.append(part)
+
+        body = "\n".join(text_parts).strip()
+        if body:
+            await self.send(to_handle, body, meta)
+
+        if not file_parts:
+            return
+
+        thread_type = self._resolve_thread_type(meta)
+        for part in file_parts:
+            file_ref = getattr(part, "file_url", None) or getattr(
+                part,
+                "file_id",
+                None,
+            )
+            if not file_ref:
+                continue
+
+            remote_url = self._to_zalo_remote_file_url(str(file_ref))
+            filename = getattr(part, "filename", None) or Path(
+                str(file_ref).replace("file://", ""),
+            ).name
+
+            if not remote_url:
+                await self.send(
+                    to_handle,
+                    f"[File: {file_ref}]\nKhong the gui tep truc tiep qua Zalo voi duong dan local. Neu can gui tep truc tiep, dat ZALO_FILE_BASE_URL den host public cua QwenPaw.",
+                    meta,
+                )
+                continue
+
+            try:
+                await self.bot.sendRemoteFile(
+                    remote_url,
+                    thread_id=to_handle,
+                    thread_type=thread_type,
+                    fileName=filename or "attachment",
+                )
+                logger.info(
+                    "zalo send file ok: to=%s file=%s",
+                    str(to_handle)[:64],
+                    str(filename)[:128],
+                )
+            except Exception:
+                logger.exception(
+                    "zalo send file failed: to=%s file=%s",
+                    str(to_handle)[:64],
+                    str(file_ref)[:160],
+                )
+                await self.send(
+                    to_handle,
+                    f"[File: {file_ref}]\nGui tep truc tiep that bai, vui long mo link tep thu cong.",
+                    meta,
+                )

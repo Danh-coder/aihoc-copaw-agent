@@ -14,6 +14,7 @@ from __future__ import annotations
 import copy
 import logging
 import os
+import re
 import sys
 import json
 from datetime import datetime
@@ -329,6 +330,152 @@ class ConsoleChannel(BaseChannel):
         logger.info("Usage for session %s (cleaned up): %s", session_id, usage)
         return usage
 
+    @staticmethod
+    def _extract_report_paths_from_message(message: Message) -> List[str]:
+        """Best-effort extraction of generated report paths from tool outputs."""
+        report_paths: List[str] = []
+
+        content = getattr(message, "content", None) or []
+        for block in content:
+            if getattr(block, "type", None) != ContentType.DATA:
+                continue
+
+            data = getattr(block, "data", None) or {}
+            output = data.get("output")
+            parsed = None
+            if isinstance(output, dict):
+                parsed = output
+            elif isinstance(output, str):
+                try:
+                    parsed = json.loads(output)
+                except json.JSONDecodeError:
+                    parsed = None
+
+            if isinstance(parsed, dict):
+                pdf_val = parsed.get("pdf_path")
+                if isinstance(pdf_val, str) and pdf_val.strip():
+                    report_paths.append(pdf_val.strip())
+
+                # Keep generic keys only when they clearly point to PDF.
+                for key in ("path", "file_path"):
+                    val = parsed.get(key)
+                    if (
+                        isinstance(val, str)
+                        and val.strip()
+                        and val.strip().lower().endswith(".pdf")
+                    ):
+                        report_paths.append(val.strip())
+
+                # Some tools nest generated paths under result/file objects.
+                nested = parsed.get("result")
+                if isinstance(nested, dict):
+                    pdf_val = nested.get("pdf_path")
+                    if isinstance(pdf_val, str) and pdf_val.strip():
+                        report_paths.append(pdf_val.strip())
+
+                    for key in ("path", "file_path"):
+                        val = nested.get(key)
+                        if (
+                            isinstance(val, str)
+                            and val.strip()
+                            and val.strip().lower().endswith(".pdf")
+                        ):
+                            report_paths.append(val.strip())
+
+            if isinstance(output, str):
+                # Fallback regex for plain-text tool output.
+                for m in re.finditer(
+                    r"(/app/working/[^\s\"']+\.pdf)",
+                    output,
+                    flags=re.IGNORECASE,
+                ):
+                    report_paths.append(m.group(1))
+
+        # Keep unique order.
+        deduped: List[str] = []
+        seen = set()
+        for p in report_paths:
+            if p not in seen:
+                seen.add(p)
+                deduped.append(p)
+        return deduped
+
+    @staticmethod
+    def _parts_have_file(parts: List[OutgoingContentPart]) -> bool:
+        for part in parts:
+            if getattr(part, "type", None) == ContentType.FILE:
+                return True
+        return False
+
+    @staticmethod
+    def _to_file_url(path: str) -> str:
+        if path.startswith("file://"):
+            return path
+        return f"file://{path}"
+
+    def _append_report_file_fallback_messages(
+        self,
+        event_output: List[Message],
+    ) -> List[Message]:
+        """Append a synthetic file message when report paths exist but file parts do not."""
+        has_file_part = False
+        report_paths: List[str] = []
+
+        for message in event_output:
+            report_paths.extend(self._extract_report_paths_from_message(message))
+
+            # Fallback checks on serialized payload are more robust than
+            # renderer-derived parts for tool outputs.
+            try:
+                if hasattr(message, "model_dump"):
+                    raw = json.dumps(message.model_dump(), ensure_ascii=False)
+                elif hasattr(message, "json"):
+                    raw = str(message.json())
+                else:
+                    raw = str(message)
+            except Exception:
+                raw = str(message)
+
+            if re.search(r'"type"\s*:\s*"file"|"file_url"', raw):
+                has_file_part = True
+
+            for m in re.finditer(
+                r"(/app/working/[^\s\"']+\.pdf)",
+                raw,
+                flags=re.IGNORECASE,
+            ):
+                report_paths.append(m.group(1))
+
+        if has_file_part:
+            return event_output
+
+        dedup_paths: List[str] = []
+        seen = set()
+        for path in report_paths:
+            if path and path not in seen:
+                seen.add(path)
+                dedup_paths.append(path)
+
+        if not dedup_paths:
+            return event_output
+
+        # For report fallback, return exactly one file (the latest discovered PDF).
+        dedup_paths = [dedup_paths[-1]]
+
+        synthetic_msg = Message(
+            type=MessageType.MESSAGE,
+            role="assistant",
+            content=[
+                FileContent(
+                    type=ContentType.FILE,
+                    filename=Path(path).name,
+                    file_url=path,
+                )
+                for path in dedup_paths
+            ],
+        )
+        return [*event_output, synthetic_msg]
+
     async def stream_one(self, payload: Any) -> AsyncGenerator[str, None]:
         """Process one payload and yield SSE-formatted events"""
         if isinstance(payload, dict) and "content_parts" in payload:
@@ -385,6 +532,11 @@ class ConsoleChannel(BaseChannel):
                     and event.status == RunStatus.Completed
                 ):
                     event_output = event.output
+                    if event_output is None:
+                        event_output = []
+                    event_output = self._append_report_file_fallback_messages(
+                        list(event_output),
+                    )
                     event.output = []
                     if event_output is not None:
                         for message in event_output:
@@ -536,6 +688,21 @@ class ConsoleChannel(BaseChannel):
         prefix = (meta or {}).get("bot_prefix", self.bot_prefix) or ""
         if prefix and body:
             body = prefix + "  " + body
+        for p in parts:
+            t = getattr(p, "type", None)
+            if t == ContentType.IMAGE and getattr(p, "image_url", None):
+                body += f"\n[Image: {p.image_url}]"
+            elif t == ContentType.VIDEO and getattr(p, "video_url", None):
+                body += f"\n[Video: {p.video_url}]"
+            elif t == ContentType.FILE:
+                file_ref = getattr(p, "file_url", None) or getattr(
+                    p,
+                    "file_id",
+                    None,
+                )
+                body += f"\n[File: {file_ref}]"
+            elif t == ContentType.AUDIO and getattr(p, "data", None):
+                body += "\n[Audio]"
         return body
 
     # ── send (for proactive sends / cron) ───────────────────────────

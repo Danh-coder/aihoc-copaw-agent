@@ -194,6 +194,14 @@ def _remove_invalid_tool_blocks(msgs: list) -> list:
     """
     changed = False
     result: list = []
+    synthetic_counter = 0
+    pending_auto_ids_by_name: dict[str, list[str]] = {}
+    pending_auto_ids_any: list[str] = []
+
+    def _new_auto_tool_id() -> str:
+        nonlocal synthetic_counter
+        synthetic_counter += 1
+        return f"auto_tool_{synthetic_counter}"
 
     for msg in msgs:
         if not isinstance(msg.content, list):
@@ -215,16 +223,88 @@ def _remove_invalid_tool_blocks(msgs: list) -> list:
                 block_id = block.get("id")
                 block_name = block.get("name")
 
+                # Normalize whitespace-only IDs to missing.
+                if isinstance(block_id, str) and not block_id.strip():
+                    block_id = None
+
                 # Check if id is valid (not None, not empty string)
                 if not block_id:
-                    logger.warning(
-                        "Removing %s with invalid id: id=%r, name=%r",
-                        block_type,
-                        block_id,
-                        block_name,
-                    )
-                    removed = True
-                    continue
+                    if block_type == "tool_use":
+                        # Repair missing tool_use IDs so later tool_result can be paired.
+                        new_id = _new_auto_tool_id()
+                        repaired = dict(block)
+                        repaired["id"] = new_id
+                        block = repaired
+                        block_id = new_id
+                        changed = True
+                        logger.warning(
+                            "Repairing tool_use with invalid id: old id=%r, "
+                            "name=%r, new id=%r",
+                            None,
+                            block_name,
+                            new_id,
+                        )
+
+                        name_key = (
+                            block_name.strip()
+                            if isinstance(block_name, str)
+                            and block_name.strip()
+                            else ""
+                        )
+                        if name_key:
+                            pending_auto_ids_by_name.setdefault(
+                                name_key,
+                                [],
+                            ).append(new_id)
+                        pending_auto_ids_any.append(new_id)
+                    else:
+                        # Try to pair invalid tool_result with a pending repaired tool_use.
+                        candidate_id = None
+                        name_key = (
+                            block_name.strip()
+                            if isinstance(block_name, str)
+                            and block_name.strip()
+                            else ""
+                        )
+                        if name_key and pending_auto_ids_by_name.get(name_key):
+                            candidate_id = pending_auto_ids_by_name[name_key].pop(0)
+                            if not pending_auto_ids_by_name[name_key]:
+                                del pending_auto_ids_by_name[name_key]
+                            if candidate_id in pending_auto_ids_any:
+                                pending_auto_ids_any.remove(candidate_id)
+                        elif pending_auto_ids_any:
+                            candidate_id = pending_auto_ids_any.pop(0)
+                            for key, id_list in list(
+                                pending_auto_ids_by_name.items(),
+                            ):
+                                if candidate_id in id_list:
+                                    id_list.remove(candidate_id)
+                                    if not id_list:
+                                        del pending_auto_ids_by_name[key]
+                                    break
+
+                        if candidate_id:
+                            repaired = dict(block)
+                            repaired["id"] = candidate_id
+                            block = repaired
+                            block_id = candidate_id
+                            changed = True
+                            logger.warning(
+                                "Repairing tool_result with invalid id: "
+                                "name=%r, new id=%r",
+                                block_name,
+                                candidate_id,
+                            )
+                        else:
+                            logger.warning(
+                                "Removing %s with invalid id and no pairing "
+                                "candidate: id=%r, name=%r",
+                                block_type,
+                                None,
+                                block_name,
+                            )
+                            removed = True
+                            continue
 
                 # For tool_use, also check name is non-empty
                 if block_type == "tool_use" and not block_name:

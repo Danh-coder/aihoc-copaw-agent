@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json as _json
 import logging
+import time
 import uuid as _uuid
 from typing import Any, Literal
 
@@ -25,6 +26,13 @@ from ..security.tool_guard.models import (
 from ..security.tool_guard.i18n import _TOOL_GUARD_I18N
 
 logger = logging.getLogger(__name__)
+
+
+def _truncate_log_text(value: Any, max_len: int = 1500) -> str:
+    text = str(value)
+    if len(text) <= max_len:
+        return text
+    return text[:max_len] + "...<truncated>"
 
 
 def _normalize_tool_guard_ui_lang(raw: Any) -> str:
@@ -105,6 +113,21 @@ class ToolGuardMixin:
         if isinstance(raw, str) and raw.strip():
             return _normalize_tool_guard_ui_lang(raw)
         return "en"
+
+    @staticmethod
+    def _normalize_tool_call_id(tool_call: dict[str, Any]) -> dict[str, Any]:
+        """Return a copy with a non-empty string ``id``.
+
+        Some providers may emit ``tool_use`` blocks with ``id: null``.
+        Downstream schemas require string ``call_id`` for tool outputs.
+        """
+        normalized = dict(tool_call or {})
+        raw_id = normalized.get("id")
+        tool_id = str(raw_id).strip() if raw_id is not None else ""
+        if not tool_id:
+            tool_id = f"tool-{_uuid.uuid4().hex[:12]}"
+        normalized["id"] = tool_id
+        return normalized
 
     def _last_tool_response_is_denied(self) -> bool:
         """Check if the last message is a guard-denied tool result."""
@@ -305,43 +328,79 @@ class ToolGuardMixin:
         pre-approved and non-guarded) runs **outside** the lock for
         true parallelism.
         """
-        ctx = getattr(self, "_request_context", None) or {}
-        if ctx.get("_headless_tool_guard", "true").lower() == "false":
-            return await super()._acting(tool_call)  # type: ignore[misc]
+        # Ensure tool id is always present before any guard/execution path.
+        tool_call = self._normalize_tool_call_id(tool_call)
+        tool_name = str(tool_call.get("name", "")) or "unknown"
+        tool_id = str(tool_call.get("id", ""))
+        started_at = time.perf_counter()
+        status = "failed"
+        detail = ""
+        logger.info(
+            "tool_call_start status=started id=%s name=%s input=%s",
+            tool_id,
+            tool_name,
+            _truncate_log_text(tool_call.get("input", {})),
+        )
 
-        self._ensure_tool_guard()
+        try:
+            ctx = getattr(self, "_request_context", None) or {}
+            if ctx.get("_headless_tool_guard", "true").lower() == "false":
+                result = await super()._acting(tool_call)  # type: ignore[misc]
+                status = "success"
+                detail = _truncate_log_text(result)
+                return result
 
-        action: _GuardAction | None = None
-        async with self._tool_guard_lock:
-            try:
-                action = await self._decide_guard_action(tool_call)
-            except Exception as exc:
-                logger.warning(
-                    "Tool guard check error (non-blocking): %s",
-                    exc,
-                    exc_info=True,
-                )
+            self._ensure_tool_guard()
 
-        if action is not None:
-            return await self._execute_guard_action(action, tool_call)
+            action: _GuardAction | None = None
+            async with self._tool_guard_lock:
+                try:
+                    action = await self._decide_guard_action(tool_call)
+                except Exception as exc:
+                    logger.warning(
+                        "Tool guard check error (non-blocking): %s",
+                        exc,
+                        exc_info=True,
+                    )
 
-        result = await super()._acting(tool_call)  # type: ignore[misc]
+            if action is not None:
+                result = await self._execute_guard_action(action, tool_call)
+                status = "success"
+                detail = _truncate_log_text(result)
+                return result
 
-        if getattr(self, "_tool_guard_forced_replay_active", False):
-            tool_name = str(tool_call.get("name", ""))
-            tool_input = tool_call.get("input", {})
-            self._tool_guard_forced_replay_active = False
-            self._tool_guard_replay_done = {
-                "tool_name": tool_name,
-                "tool_input": tool_input,
-                "remaining_queue": getattr(
-                    self,
-                    "_tool_guard_replay_queue",
-                    [],
-                ),
-            }
+            result = await super()._acting(tool_call)  # type: ignore[misc]
+            status = "success"
+            detail = _truncate_log_text(result)
 
-        return result
+            if getattr(self, "_tool_guard_forced_replay_active", False):
+                tool_input = tool_call.get("input", {})
+                self._tool_guard_forced_replay_active = False
+                self._tool_guard_replay_done = {
+                    "tool_name": tool_name,
+                    "tool_input": tool_input,
+                    "remaining_queue": getattr(
+                        self,
+                        "_tool_guard_replay_queue",
+                        [],
+                    ),
+                }
+
+            return result
+        except Exception as exc:
+            status = "failed"
+            detail = _truncate_log_text(exc)
+            raise
+        finally:
+            elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+            logger.info(
+                "tool_call_finish status=%s id=%s name=%s elapsed_ms=%s detail=%s",
+                status,
+                tool_id,
+                tool_name,
+                elapsed_ms,
+                detail,
+            )
 
     async def _decide_guard_action(
         self,
